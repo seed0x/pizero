@@ -1,0 +1,20 @@
+# Python virtual environment
+env/
+.venv/
+
+# Python cache files
+__pycache__/
+*.pyc
+
+# Database file and journals
+# You should not commit the database itself, just the code that creates it.
+*.db
+*.db-journal
+
+# Media files (recordings and thumbnails)
+# This ignores the entire 'data' directory where media and the DB are stored.
+data/
+events/
+# IDE/Editor specific files (optional but good practice)
+.vscode/
+.idea/

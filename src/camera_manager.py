@@ -85,10 +85,9 @@ class CameraManager:
                 print("Picamera2 started.")
 
                 # Attempt autofocus for IMX708
-                try:
-                    self.picam2.set_controls({
-                         self.picam2.set_controls({"AfMode": controls.AfModeEnum.Auto, "AfTrigger": controls.AfTriggerEnum.Start})
-                    })
+                try:       
+                    self.picam2.set_controls({"AfMode": controls.AfModeEnum.Auto, "AfTrigger": controls.AfTriggerEnum.Start})
+                    
                     # Allow some time for continuous AF to settle, or after triggering Auto.
                     time.sleep(2) 
                     print("Autofocus mode set/triggered.")
@@ -112,7 +111,10 @@ class CameraManager:
         h264_full_path = os.path.join(VIDEO_FILES_DIR, h264_filename)
         mp4_full_path = None
         generated_thumbnail_path = None
-
+        
+        # Ensure the target directory exists
+        os.makedirs(VIDEO_FILES_DIR, exist_ok=True)
+        
         #print(f"Motion detected! Recording video to {h264_full_path}...")
         
         with self.camera_lock: # Ensure exclusive camera access for recording configuration
@@ -120,22 +122,22 @@ class CameraManager:
                 
                 encoder = H264Encoder()
                 output = FileOutput(h264_full_path)
-                picam2.start_encoder(encoder, output)
+                self.picam2.start_encoder(encoder, output)
                 print(f"Recording started: {h264_full_path}")
                 time.sleep(10) # Record for the specified duration
-                picam2.stop_encoder()
+                self.picam2.stop_encoder()
                 print(f"Recording stopped: {h264_full_path}")
             except Exception as e:
                 print(f"Recording stopped: {h264_full_path}")
 
         # --- Post-recording processing ---
         self.noti.send_telegram_message(f"Motion! Video recorded: {h264_filename}")
-        self.noti.send_telegram_video(mp4_full_path)
+        
         # Convert to MP4
         mp4_full_path = self.noti.convert_video_to_mp4(h264_full_path) # This should return the full path of the MP4
         
         if mp4_full_path and os.path.exists(mp4_full_path):
-            #self.noti.send_telegram_video(mp4_full_path)
+            self.noti.send_telegram_video(mp4_full_path)
 
             # Generate Thumbnail
             generated_thumbnail_path = generate_thumbnail(mp4_full_path)

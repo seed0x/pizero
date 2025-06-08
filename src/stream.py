@@ -14,6 +14,9 @@ app.secret_key = 'mysecret'
 # Global variables
 cam_manager = CameraManager()
 
+VIDEO_FILES_DIR = os.path.join(EVENTS_STORAGE_DIR, VIDEOS_SUBDIR_NAME)
+THUMBNAIL_FILES_DIR = os.path.join(EVENTS_STORAGE_DIR, THUMBNAILS_SUBDIR_NAME)
+
 def load_jpeg_image(filename="placeholder.jpg"):
     """Loads a JPEG image from the static folder and returns its binary content."""
     image_path = os.path.join(app.static_folder, filename)
@@ -46,13 +49,13 @@ def serve_video(filename):
         return "Access Denied: Please login.", 403
     try:
         # VIDEO_FILES_DIR is the absolute path to MP4 video files
-        print(f"Attempting to serve video: {filename} from {EVENTS_STORAGE_DIR}")
+        print(f"Attempting to serve video: {filename} from {VIDEO_FILES_DIR}")
         # send_from_directory handles range requests for video streaming
-        return send_from_directory(EVENTS_STORAGE_DIR, filename, as_attachment=False, mimetype='video/mp4')
+        return send_from_directory(VIDEO_FILES_DIR, filename, as_attachment=False, mimetype='video/mp4')
     except FileNotFoundError:
         return "Video not found", 404
     except Exception as e:
-    return "Error serving video", 500
+        return "Error serving video", 500
 
 #Login Page
 @app.route('/', methods=['GET','POST'])

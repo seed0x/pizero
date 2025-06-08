@@ -47,7 +47,7 @@ class notiManager:
         print(f"Converting video to MP4: {video_path}")
         
         mp4_file = video_path.replace(".h264", ".mp4")
-        command = ["ffmpeg", "-y", "-i", video_path, "-c:v", "libx264","-preset", "ultrafast", mp4_file]
+        command = ["ffmpeg", "-i", video_path, "-c:v", "copy", mp4_file]
         try:
             subprocess.run(command, check=True)
             return mp4_file

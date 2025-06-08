@@ -40,21 +40,24 @@
         <div class="dashboard-layout">
             <div class="live-stream-section">
                 <h2>Live Stream</h2>
-                <div class="video-container">
-                    <img id="videoFeed" class="video-feed" src="{{ url_for('video_feed') }}" alt="Live video feed">
+                <div class="video-wrapper">
+                <div id="placeholder-message" class="placeholder-text">
+                    Press "Start Stream" to begin
                 </div>
-                <div class="controls">
-                    <button onclick="startStream()">Start Stream</button>
-                    <button onclick="stopStream()">Stop Stream</button>
-                </div>
-                <div id="stream-status">Stream Status: <span id="status">Inactive</span></div>
-                <div class="video-player-section" style="margin-top: 20px;">
-                    <h3 id="videoPlayerTitle" style="display:none; text-align:left; font-size:1.1em;">Now Playing:</h3>
-                    <video id="eventVideoPlayer" controls preload="none" style="display:none; width:100%; max-width:560px;">
-                        Your browser does not support the video tag.
-                    </video>
-                </div>
+                <img id="videoFeed" class="video-feed" src="" alt="Live video feed" style="display: none;">
+        </div>
+        <div class="controls">
+                <button onclick="startStream()">Start Stream</button>
+                <button onclick="stopStream()">Stop Stream</button>
+        </div>
+        <div id="stream-status">Stream Status: <span id="status">Inactive</span></div>
+            <div class="video-player-section" style="margin-top: 20px;">
+                <h3 id="videoPlayerTitle" style="display:none; text-align:left; font-size:1.1em;">Now Playing:</h3>
+                <video id="eventVideoPlayer" controls preload="none" style="display:none; width:100%; max-width:560px;">
+                Your browser does not support the video tag.
+                </video>
             </div>
+        </div>
 
             <div class="events-section">
                 <h2>Recent Events</h2>
@@ -121,74 +124,95 @@
         </div>
     </div>
 
-    <script>
-        // Your existing JavaScript for startStream, stopStream, updateStreamStatus, showVideoPlayer
-        const videoElementForStream = document.getElementById("videoFeed");
-        const eventVideoPlayerElement = document.getElementById('eventVideoPlayer');
-        const eventVideoPlayerTitle = document.getElementById('videoPlayerTitle');
+ <script>
+    // Get references to the HTML elements
+    const videoFeed = document.getElementById("videoFeed");
+    const placeholderMessage = document.getElementById("placeholder-message");
+    const statusSpan = document.getElementById("status");
+    const eventVideoPlayerElement = document.getElementById('eventVideoPlayer');
+    const eventVideoPlayerTitle = document.getElementById('videoPlayerTitle');
 
-        function updateStreamStatus() {
-            fetch("/stream_status")
-                .then(response => response.json())
-                .then(data => {
-                    const statusSpan = document.getElementById("status");
-                    if (data.active) { statusSpan.innerText = "Active"; } else { statusSpan.innerText = "Inactive"; }
-                })
-                .catch(error => console.error("Error fetching stream status:", error));
+    // --- Core Functions for Stream Control ---
+
+    function updateStreamUI(isActive) {
+        if (isActive) {
+            // Show video feed, hide placeholder
+            placeholderMessage.style.display = 'none';
+            videoFeed.style.display = 'block';
+            // Set the src to start the stream, with cache-busting
+            videoFeed.src = "{{ url_for('video_feed') }}?" + new Date().getTime();
+        } else {
+            // Show placeholder, hide video feed
+            placeholderMessage.style.display = 'flex';
+            videoFeed.style.display = 'none';
+            // Important: Clear the src to stop the stream and prevent stuck frames
+            videoFeed.src = ''; 
         }
+        statusSpan.innerText = isActive ? "Active" : "Inactive";
+    }
 
-        function startStream() {
-            fetch("/start_stream", { method: "POST" })
+    function startStream() {
+        fetch("/start_stream", { method: "POST" })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === "success") {
+                updateStreamUI(true);
+            } else {
+                alert("Failed to start stream: " + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(error => alert("Error starting the stream: " + error.message));
+    }
+
+    function stopStream() {
+        fetch("/stop_stream", { method: "POST" })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === "success") {
+                updateStreamUI(false);
+            } else {
+                alert("Failed to stop stream: " + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(error => alert("Error stopping the stream: " + error.message));
+    }
+
+    function checkInitialStatus() {
+        fetch("/stream_status")
             .then(response => response.json())
             .then(data => {
-                if (data.status === "success") {
-                    updateStreamStatus();
-                    if (videoElementForStream) {
-                        videoElementForStream.src = "{{ url_for('video_feed') }}?" + new Date().getTime();
-                    }
-                } else { alert("Failed to start stream: " + (data.message || 'Unknown error')); }
+                updateStreamUI(data.active);
             })
-            .catch(error => alert("Error starting the stream: " + error.message));
-        }
-
-        function stopStream() {
-            fetch("/stop_stream", { method: "POST" })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === "success") {
-                    updateStreamStatus();
-                    if (videoElementForStream) {
-                        videoElementForStream.src = "{{ url_for('video_feed') }}?" + new Date().getTime(); 
-                    }
-                } else { alert("Failed to stop stream: " + (data.message || 'Unknown error')); }
-            })
-            .catch(error => alert("Error stopping the stream: " + error.message));
-        }
-        
-        document.addEventListener('DOMContentLoaded', function() {
-            updateStreamStatus();
-        });
-        setInterval(updateStreamStatus, 5000);
-
-        function showVideoPlayer(videoSrc, playerId) {
-            if (!videoSrc) {
-                console.warn("showVideoPlayer called with no video source.");
-                return;
-            }
-            if (!eventVideoPlayerElement || !eventVideoPlayerTitle) {
-                console.error("Main event video player element or title not found.");
-                return;
-            }
-            const displayTitle = videoSrc.substring(videoSrc.lastIndexOf('/') + 1);
-            eventVideoPlayerTitle.innerText = "Now Playing: " + displayTitle;
-            eventVideoPlayerTitle.style.display = 'block';
-            eventVideoPlayerElement.src = videoSrc;
-            eventVideoPlayerElement.style.display = 'block';
-            eventVideoPlayerElement.load(); 
-            eventVideoPlayerElement.play().catch(error => {
-                console.warn("Autoplay for event video was prevented:", error);
+            .catch(error => {
+                console.error("Error fetching initial stream status:", error);
+                updateStreamUI(false); // Default to inactive state on error
             });
+    }
+
+    // --- Event Video Player Function ---
+
+    function showVideoPlayer(videoSrc, playerId) {
+        if (!videoSrc) {
+            console.warn("showVideoPlayer called with no video source.");
+            return;
         }
-    </script>
+        const displayTitle = videoSrc.substring(videoSrc.lastIndexOf('/') + 1);
+        eventVideoPlayerTitle.innerText = "Now Playing: " + displayTitle;
+        eventVideoPlayerTitle.style.display = 'block';
+        eventVideoPlayerElement.src = videoSrc;
+        eventVideoPlayerElement.style.display = 'block';
+        eventVideoPlayerElement.load();
+        eventVideoPlayerElement.play().catch(error => {
+            console.warn("Autoplay for event video was prevented:", error);
+        });
+    }
+
+    // --- Page Load ---
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // Check the stream status as soon as the page loads
+        checkInitialStatus();
+    });
+</script>
 </body>
 </html>
